@@ -11,6 +11,19 @@ name: APK Builder
       package_name:
         description: "Package Name"
         required: true
+name: APK Builder
+
+"on":
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: "Application Name"
+        required: true
+        default: "My App"
+
+      package_name:
+        description: "Package Name"
+        required: true
         default: "com.example.myapp"
 
       website_url:
