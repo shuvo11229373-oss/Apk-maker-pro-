@@ -1,0 +1,173 @@
+<!DOCTYPE html><html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APK Maker Pro</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;
+ background:#080b16;
+ color:white;
+ font-family:Arial,sans-serif;
+}
+header{
+ padding:22px;
+ text-align:center;
+ background:linear-gradient(120deg,#5116bb,#0879d9);
+}
+header h1{margin:0;font-size:27px}
+header p{color:#ddd}
+.container{max-width:750px;margin:auto;padding:15px}
+.card{
+ background:#121a2b;
+ border:1px solid #263451;
+ border-radius:15px;
+ padding:18px;
+ margin-bottom:16px;
+}
+h3{color:#63aaff;margin-top:0}
+label{display:block;margin:14px 0 7px;color:#cbd5e1}
+input,textarea,select{
+ width:100%;
+ padding:13px;
+ border-radius:9px;
+ border:1px solid #34445f;
+ background:#080f20;
+ color:white;
+ outline:none;
+}
+textarea{height:130px;resize:vertical}
+.permissions{
+ display:grid;
+ grid-template-columns:1fr 1fr;
+ gap:12px;
+}
+.permission{
+ background:#0b1324;
+ padding:12px;
+ border-radius:9px;
+ font-size:14px;
+}
+.permission input{width:auto;margin-right:7px}
+button{
+ width:100%;
+ padding:15px;
+ border:0;
+ border-radius:10px;
+ background:linear-gradient(100deg,#762bff,#078bea);
+ color:white;
+ font-weight:bold;
+ font-size:16px;
+ margin-top:12px;
+}
+button:active{opacity:.8}
+#status{color:#57e6a1;text-align:center}
+small{color:#94a3b8}
+</style>
+</head>
+<body><header>
+<h1>⚡ APK MAKER PRO</h1>
+<p>Build Your Android App Online</p>
+</header><div class="container"><div class="card">
+<h3>🌐 Website / HTML</h3><label>Build Type</label>
+<select id="type">
+
+<option value="url">Website URL</option>
+<option value="html">HTML Code</option>
+</select><label>Website URL</label>
+<input id="url" placeholder="https://example.com">
+
+<label>HTML Code</label>
+
+<textarea id="html" placeholder="Paste your HTML code here"></textarea></div><div class="card">
+<h3>📱 App Information</h3><label>App Name</label>
+<input id="appname" placeholder="My Application">
+
+<label>Package Name</label>
+<input id="package" value="com.example.myapp">
+
+<label>App Icon</label>
+<input type="file" id="icon" accept="image/*">
+
+<label>Version</label>
+<input id="version" value="1.0">
+
+</div><div class="card">
+<h3>🔐 Android Permissions</h3><div class="permissions">
+<label class="permission"><input type="checkbox" value="INTERNET" checked> Internet</label>
+<label class="permission"><input type="checkbox" value="ACCESS_FINE_LOCATION"> Location</label>
+<label class="permission"><input type="checkbox" value="RECORD_AUDIO"> Microphone</label>
+<label class="permission"><input type="checkbox" value="CAMERA"> Camera</label>
+<label class="permission"><input type="checkbox" value="READ_CONTACTS"> Contacts</label>
+<label class="permission"><input type="checkbox" value="POST_NOTIFICATIONS"> Notifications</label>
+<label class="permission"><input type="checkbox" value="VIBRATE"> Vibration</label>
+<label class="permission"><input type="checkbox" value="BLUETOOTH_CONNECT"> Bluetooth</label>
+<label class="permission"><input type="checkbox" value="READ_MEDIA_IMAGES"> Images</label>
+<label class="permission"><input type="checkbox" value="READ_MEDIA_VIDEO"> Videos</label>
+<label class="permission"><input type="checkbox" value="READ_MEDIA_AUDIO"> Audio</label>
+<label class="permission"><input type="checkbox" value="SYSTEM_ALERT_WINDOW"> Display Over Apps</label>
+</div>
+</div><div class="card">
+<h3>⚙️ App Settings</h3><label>Screen Orientation</label>
+<select id="orientation">
+
+<option value="portrait">Portrait</option>
+<option value="landscape">Landscape</option>
+<option value="unspecified">Auto Rotate</option>
+</select><label>Display Mode</label>
+<select id="display">
+
+<option value="normal">Normal</option>
+<option value="fullscreen">Full Screen</option>
+</select>
+</div><div class="card">
+<h3>🚀 Build APK</h3>
+<p><small>আপনার সেটিংস GitHub Build System-এ পাঠানোর জন্য প্রস্তুত করুন।</small></p>
+<button onclick="prepareBuild()">BUILD APK</button>
+<p id="status"></p>
+</div></div><script>
+function prepareBuild(){
+ const type=document.getElementById('type').value;
+ const name=document.getElementById('appname').value.trim();
+ const pkg=document.getElementById('package').value.trim();
+ const url=document.getElementById('url').value.trim();
+ const html=document.getElementById('html').value;
+
+ if(!name || !pkg){
+  alert('App Name এবং Package Name দিন');
+  return;
+ }
+
+ if(!/^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(pkg)){
+  alert('সঠিক Package Name দিন');
+  return;
+ }
+
+ if(type==='url' && !/^https?:\/\/.+/i.test(url)){
+  alert('সঠিক Website URL দিন');
+  return;
+ }
+
+ if(type==='html' && !html.trim()){
+  alert('HTML Code দিন');
+  return;
+ }
+
+ const permissions=[...document.querySelectorAll('.permission input:checked')].map(x=>x.value);
+
+ const data={
+  type,name,pkg,url,html,
+  version:document.getElementById('version').value,
+  orientation:document.getElementById('orientation').value,
+  display:document.getElementById('display').value,
+  permissions
+ };
+
+ localStorage.setItem('apkMakerBuild',JSON.stringify(data));
+
+ document.getElementById('status').innerText=
+ 'আপনার সেটিংস প্রস্তুত হয়েছে। APK Build Server এখনো সংযুক্ত করা হয়নি।';
+}
+</script></body>
+</html>
