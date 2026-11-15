@@ -1,19 +1,18 @@
 name: APK Builder
-env:
-          PACKAGE_NAME: ${{ inputs.package_name }}
-        run: gradle :app:assembleDebug
 
-on:
+"on":
   workflow_dispatch:
     inputs:
       app_name:
         description: App Name
         required: true
         default: My App
+
       package_name:
         description: Package Name
         required: true
         default: com.example.myapp
+
       website_url:
         description: Website URL
         required: true
@@ -33,18 +32,18 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Setup Android
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
-
-      - name: Create Android Project
+      - name: Create Project
         env:
           APP_NAME: ${{ inputs.app_name }}
           PACKAGE_NAME: ${{ inputs.package_name }}
@@ -53,27 +52,11 @@ jobs:
           mkdir -p app/src/main/java
           mkdir -p app/src/main/res/values
 
-          export JAVA_PATH=$(echo "$PACKAGE_NAME" | tr '.' '/')
+          JAVA_PATH=$(echo "$PACKAGE_NAME" | tr '.' '/')
           mkdir -p "app/src/main/java/$JAVA_PATH"
 
-          cat > settings.gradle <<'EOF'
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          rootProject.name = "APKMaker"
-          include ':app'
-          EOF
+          echo "rootProject.name='APKMaker'" > settings.gradle
+          echo "include ':app'" >> settings.gradle
 
           cat > build.gradle <<'EOF'
           plugins {
@@ -100,33 +83,32 @@ jobs:
           }
           EOF
 
-          cat > app/src/main/res/values/strings.xml <<EOF
-          <resources>
-              <string name="app_name">${APP_NAME}</string>
-          </resources>
-          EOF
+          echo "<resources><string name=\"app_name\">$APP_NAME</string></resources>" > app/src/main/res/values/strings.xml
 
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET"/>
+
               <application
-                  android:theme="@android:style/Theme.Material.Light.NoActionBar"
                   android:label="@string/app_name"
-                  android:usesCleartextTraffic="true">
+                  android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
                   <activity
                       android:name=".MainActivity"
                       android:exported="true">
+
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN"/>
                           <category android:name="android.intent.category.LAUNCHER"/>
                       </intent-filter>
+
                   </activity>
               </application>
           </manifest>
           EOF
 
-          cat > "app/src/main/java/$JAVA_PATH/MainActivity.java" <<'EOF'
-          package PACKAGE_PLACEHOLDER;
+          cat > "app/src/main/java/$JAVA_PATH/MainActivity.java" <<EOF
+          package $PACKAGE_NAME;
 
           import android.app.Activity;
           import android.os.Bundle;
@@ -134,6 +116,7 @@ jobs:
           import android.webkit.WebViewClient;
 
           public class MainActivity extends Activity {
+
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
@@ -142,23 +125,17 @@ jobs:
                   web.getSettings().setJavaScriptEnabled(true);
                   web.getSettings().setDomStorageEnabled(true);
                   web.setWebViewClient(new WebViewClient());
-                  setContentView(web);
-                  web.loadUrl("URL_PLACEHOLDER");
-              }
 
-              @Override
-              public void onBackPressed() {
-                  WebView web = (WebView) findViewById(android.R.id.content).getRootView();
-                  super.onBackPressed();
+                  setContentView(web);
+                  web.loadUrl("$WEBSITE_URL");
               }
           }
           EOF
 
-          sed -i "s|PACKAGE_PLACEHOLDER|$PACKAGE_NAME|g" "app/src/main/java/$JAVA_PATH/MainActivity.java"
-          sed -i "s|URL_PLACEHOLDER|$WEBSITE_URL|g" "app/src/main/java/$JAVA_PATH/MainActivity.java"
-
       - name: Build APK
-        run: gradle :app:assembleDebug
+        env:
+          PACKAGE_NAME: ${{ inputs.package_name }}
+        run: gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
