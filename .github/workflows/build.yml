@@ -4,26 +4,28 @@ name: APK Builder
   workflow_dispatch:
     inputs:
       app_name:
-        description: App Name
+        description: "Application Name"
         required: true
-        default: My App
+        default: "My App"
 
       package_name:
-        description: Package Name
+        description: "Package Name"
         required: true
-        default: com.example.myapp
+        default: "com.example.myapp"
 
       website_url:
-        description: Website URL
+        description: "Website URL"
         required: true
-        default: https://example.com
+        default: "https://example.com"
 
 jobs:
   build:
+    name: Build Android APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Setup Java
@@ -32,31 +34,61 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install SDK
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Install Android SDK
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Create Project
+      - name: Create Android Project
         env:
           APP_NAME: ${{ inputs.app_name }}
           PACKAGE_NAME: ${{ inputs.package_name }}
           WEBSITE_URL: ${{ inputs.website_url }}
+
         run: |
-          mkdir -p app/src/main/java
-          mkdir -p app/src/main/res/values
+
+          if ! [[ "$PACKAGE_NAME" =~ ^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$ ]]; then
+            echo "Invalid package name"
+            exit 1
+          fi
+
+          if ! [[ "$WEBSITE_URL" =~ ^https?:// ]]; then
+            echo "Invalid website URL"
+            exit 1
+          fi
 
           JAVA_PATH=$(echo "$PACKAGE_NAME" | tr '.' '/')
-          mkdir -p "app/src/main/java/$JAVA_PATH"
 
-          echo "rootProject.name='APKMaker'" > settings.gradle
-          echo "include ':app'" >> settings.gradle
+          mkdir -p "app/src/main/java/$JAVA_PATH"
+          mkdir -p app/src/main/res/values
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+
+          rootProject.name = "APKMaker"
+          include ':app'
+          EOF
 
           cat > build.gradle <<'EOF'
           plugins {
@@ -83,10 +115,27 @@ jobs:
           }
           EOF
 
-          echo "<resources><string name=\"app_name\">$APP_NAME</string></resources>" > app/src/main/res/values/strings.xml
+          export JAVA_PATH
+
+          python3 <<'PY'
+          import os
+          from xml.sax.saxutils import escape
+
+          name = escape(os.environ["APP_NAME"])
+          url = escape(os.environ["WEBSITE_URL"])
+
+          with open("app/src/main/res/values/strings.xml", "w") as f:
+              f.write(
+                  '<resources>'
+                  f'<string name="app_name">{name}</string>'
+                  f'<string name="website_url">{url}</string>'
+                  '</resources>'
+              )
+          PY
 
           cat > app/src/main/AndroidManifest.xml <<'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
               <uses-permission android:name="android.permission.INTERNET"/>
 
               <application
@@ -103,12 +152,13 @@ jobs:
                       </intent-filter>
 
                   </activity>
+
               </application>
           </manifest>
           EOF
 
-          cat > "app/src/main/java/$JAVA_PATH/MainActivity.java" <<EOF
-          package $PACKAGE_NAME;
+          cat > "app/src/main/java/$JAVA_PATH/MainActivity.java" <<'EOF'
+          package PACKAGE_PLACEHOLDER;
 
           import android.app.Activity;
           import android.os.Bundle;
@@ -117,24 +167,39 @@ jobs:
 
           public class MainActivity extends Activity {
 
+              WebView web;
+
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
 
-                  WebView web = new WebView(this);
+                  web = new WebView(this);
+
                   web.getSettings().setJavaScriptEnabled(true);
                   web.getSettings().setDomStorageEnabled(true);
+
                   web.setWebViewClient(new WebViewClient());
 
                   setContentView(web);
-                  web.loadUrl("$WEBSITE_URL");
+
+                  web.loadUrl(getString(R.string.website_url));
+              }
+
+              @Override
+              public void onBackPressed() {
+                  if (web.canGoBack()) {
+                      web.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
               }
           }
           EOF
 
+          sed -i "s|PACKAGE_PLACEHOLDER|$PACKAGE_NAME|g" \
+            "app/src/main/java/$JAVA_PATH/MainActivity.java"
+
       - name: Build APK
-        env:
-          PACKAGE_NAME: ${{ inputs.package_name }}
         run: gradle assembleDebug
 
       - name: Upload APK
@@ -142,3 +207,5 @@ jobs:
         with:
           name: APK-Download
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
