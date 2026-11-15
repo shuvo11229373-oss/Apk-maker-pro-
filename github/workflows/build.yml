@@ -1,4 +1,7 @@
 name: APK Builder
+env:
+          PACKAGE_NAME: ${{ inputs.package_name }}
+        run: gradle :app:assembleDebug
 
 on:
   workflow_dispatch:
